@@ -1,3 +1,4 @@
 google-generativeai
 chromadb
 python-dotenv
+langchain-text-splitters
