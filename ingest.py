@@ -1,6 +1,14 @@
 from pathlib import Path
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_core.documents import Document 
+from google import genai
+from google.genai import types 
+from dotenv import load_dotenv
+import chromadb
+import os
+from chromadb.utils.embedding_functions import GoogleGeminiEmbeddingFunction
+import time
+from chromadb.utils import embedding_functions
 
 dir_path = Path("data")
 def read_docs() -> list[dict[str, str]]: 
@@ -42,8 +50,45 @@ def create_chunks(content):
     print(f'Created {len(langchain_docs)} document objects / chunks')
     return langchain_docs
 
+
+def embed(langchain_docs): 
+    load_dotenv()
+
+    '''
+    client = genai.Client() 
+    chroma_client = chromadb.PersistentClient(path = "./chromadb")
+    print("active key:", os.getenv("GEMINI_API_KEY")[:8])
+    somethig is wrong with gcp allowing my gemini key. apparentely its a widespread current bug
+    '''
+    chroma_client = chromadb.PersistentClient(path="./chromadb")
+    local_ef = embedding_functions.DefaultEmbeddingFunction()  # all-MiniLM-L6-v2, runs locally
+    collection = chroma_client.get_or_create_collection(
+        name="fastapi_docs",          # fresh name — see note below
+        embedding_function=local_ef,
+    )
+
+    batch_size = 100
+    for i in range(0, len(langchain_docs), batch_size):
+        batch = langchain_docs[i:i + batch_size]
+        print(f"embedding batch {i // batch_size + 1}: chunks {i} to {i + len(batch)}...")
+        collection.upsert(
+            ids=[f"chunk_{j}" for j in range(i, i + len(batch))],
+            documents=[doc.page_content for doc in batch],   # text only — Chroma embeds it
+            metadatas=[doc.metadata for doc in batch],
+        )
+    time.sleep(2) #for rate limits
+
+    print(f"done {collection.count()} vectors in collection.")
+    return collection
+    
+
+
+
+
 content = read_docs() 
 chunks = create_chunks(content)
 print("\n sample chunk")
 print(f"source file: {chunks[5].metadata['source']}") #.metadata['source'] attribute of langchain Document object
 print(f"content: {chunks[5].page_content}")
+
+embed(chunks)
