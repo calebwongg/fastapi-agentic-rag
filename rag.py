@@ -40,9 +40,10 @@ def retrieve(prompt: str, k: int):
 def flatten_context(results): 
     documents = results["documents"][0]
     metadatas = results["metadatas"][0]
+    distances = results["distances"][0]
     data = []
     for index, document in enumerate(documents): 
-        data.append({"source": metadatas[index]["source"], "document": document})
+        data.append({"source": metadatas[index]["source"], "document": document, "distance": distances[index]}) #add in parallel
     return data 
 
 
