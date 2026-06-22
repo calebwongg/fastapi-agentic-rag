@@ -14,7 +14,7 @@ def retrieve(prompt: str, k: int):
     #the documents are the actual documents we loaded into the vector embed. the data that we are grabbing. the distances are the 
     #lengths representing how far the document is from the query in the embed / how accurate the document is. lower distance = more accurate
     #in the returned results, documents and distances are parallely related, theres not necessarily a direct connection between them in the dictionary
-    results = collection.query(query_texts=[prompt], n_results=k, include=["documents", "distances"])
+    results = collection.query(query_texts=[prompt], n_results=k, include=["documents", "distances", "metadatas"])
     '''
     the shape of results looks like this 
     results = {
@@ -57,7 +57,7 @@ def generate(prompt, context):
 
     resp = ollama.chat( 
         model = "llama3.2",
-        messages=[{"role": "user", "content": prompt}], 
+        messages=[{"role": "user", "content": query}], 
     )
 
     answer = resp["message"]["content"]
