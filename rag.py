@@ -37,6 +37,15 @@ def retrieve(prompt: str, k: int):
     return results
 
 
+def flatten_context(results): 
+    documents = results["documents"][0]
+    metadatas = results["metadatas"][0]
+    data = []
+    for index, document in enumerate(documents): 
+        data.append({"source": metadatas[index]["source"], "document": document})
+    return data 
+
+
 def generate(prompt, context): 
 
     query = f"""
@@ -67,6 +76,7 @@ def generate(prompt, context):
 prompt = "how do i define a paramter in fastapi"
 k = 4
 documents = retrieve(prompt, k) 
-print(f'documents: {documents}')
-answer = generate(prompt, documents)
+data = flatten_context(documents)
+print(f'documents: {data}')
+answer = generate(prompt, data)
 print(answer) 
