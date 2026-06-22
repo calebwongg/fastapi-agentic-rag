@@ -1,5 +1,8 @@
 import chromadb
 from chromadb.utils import embedding_functions
+import ollama
+
+#ollama pull downloads the specific model onto your local machien. ollama pull 3.2 is necessary for running and utilizing the ollama model
 
 def retrieve(prompt: str, k: int): 
     chroma_client = chromadb.PersistentClient(path="./chromadb") #./ specifies current directory
@@ -33,4 +36,37 @@ def retrieve(prompt: str, k: int):
 
     return results
 
-print(retrieve("how do i define a parameter in fastapi", 4)) 
+
+def generate(prompt, context): 
+
+    query = f"""
+        Act as a documentation-backed FastAPI Agentic Assistant tool. 
+        
+        Return answers and guidance based off of the user prompt and the documents provided. 
+        Use ONLY the provided retrieved context to answer the user's question. Cite the sources that you received 
+        your answers from to ensure credibility for your responses. Do not use any external knowledge
+
+        Rules:
+        1. Be polite, concise, and professional.
+        2. If the answer cannot be found in the provided context, reply exactly with: "I'm sorry, but I cannot find that information in our records."
+        3. Cite the source document name if provided in the context.
+
+        USER_QUESTION: {prompt}
+        CONTEXT: {context}
+    """
+
+    resp = ollama.chat( 
+        model = "llama3.2",
+        messages=[{"role": "user", "content": prompt}], 
+    )
+
+    answer = resp["message"]["content"]
+    return answer
+
+
+prompt = "how do i define a paramter in fastapi"
+k = 4
+documents = retrieve(prompt, k) 
+print(f'documents: {documents}')
+answer = generate(prompt, documents)
+print(answer) 

@@ -2,3 +2,4 @@ google-genai
 chromadb
 python-dotenv
 langchain-text-splitters
+ollama
