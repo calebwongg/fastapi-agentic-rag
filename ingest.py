@@ -60,10 +60,10 @@ def embed(langchain_docs):
     print("active key:", os.getenv("GEMINI_API_KEY")[:8])
     somethig is wrong with gcp allowing my gemini key. apparentely its a widespread current bug
     '''
-    chroma_client = chromadb.PersistentClient(path="./chromadb")
-    local_ef = embedding_functions.DefaultEmbeddingFunction()  # all-MiniLM-L6-v2, runs locally
+    chroma_client = chromadb.PersistentClient(path="./chromadb") #wriet to disk
+    local_ef = embedding_functions.DefaultEmbeddingFunction()  # runs locally now
     collection = chroma_client.get_or_create_collection(
-        name="fastapi_docs",          # fresh name — see note below
+        name="fastapi_docs",          
         embedding_function=local_ef,
     )
 
@@ -73,7 +73,7 @@ def embed(langchain_docs):
         print(f"embedding batch {i // batch_size + 1}: chunks {i} to {i + len(batch)}...")
         collection.upsert(
             ids=[f"chunk_{j}" for j in range(i, i + len(batch))],
-            documents=[doc.page_content for doc in batch],   # text only — Chroma embeds it
+            documents=[doc.page_content for doc in batch],  
             metadatas=[doc.metadata for doc in batch],
         )
     time.sleep(2) #for rate limits
