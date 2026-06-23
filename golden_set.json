@@ -1,0 +1,241 @@
+{
+  "_schema": {
+    "description": "Golden set for FastAPI-docs RAG eval. Verify expected_sources against your own corpus before trusting the retrieval metric. Do NOT pass reference_answer or key_points to your faithfulness judge (that contaminates ground truth). Use them for a separate answer-correctness check or manual review.",
+    "fields": {
+      "id": "stable identifier",
+      "question": "the user query, phrased the way a real user would ask",
+      "expected_sources": "source file(s) that SHOULD appear in top-k. Used for hit-rate / rank. Exact-string match against the 'source' metadata.",
+      "difficulty": "easy | medium | hard",
+      "multi_hop": "true if a correct answer requires synthesizing >1 doc",
+      "reference_answer": "a thorough model answer — your bar for 'how complete should this be'",
+      "key_points": "atomic, individually-checkable claims a correct answer MUST contain. This is the granularity that makes correctness scoring tractable.",
+      "retrieval_canary": "true = deliberately chosen to expose the release-notes pollution problem; expect this to fail at baseline and improve with the Phase 3 agent"
+    }
+  },
+  "golden_set": [
+    {
+      "id": "q01_path_params",
+      "question": "How do I declare a path parameter in FastAPI and give it a type?",
+      "expected_sources": ["docs\\tutorial\\path-params.md"],
+      "difficulty": "easy",
+      "multi_hop": false,
+      "reference_answer": "Declare path parameters using Python format-string syntax in the route, e.g. @app.get('/items/{item_id}'), and add a matching argument to the function. The value is passed in as that argument. To get type conversion and validation, annotate the argument with a standard Python type, e.g. `def read_item(item_id: int)`. FastAPI then parses '3' from the URL into the int 3, and returns an automatic, clear validation error if the value can't be converted.",
+      "key_points": [
+        "path parameter declared with curly-brace syntax in the route path, e.g. {item_id}",
+        "the function receives it as an argument of the same name",
+        "type is set with a standard Python annotation (e.g. item_id: int)",
+        "FastAPI performs type conversion and returns a validation error on bad input"
+      ],
+      "retrieval_canary": false
+    },
+    {
+      "id": "q02_query_params_default",
+      "question": "How do I define an optional query parameter with a default value?",
+      "expected_sources": ["docs\\tutorial\\query-params.md"],
+      "difficulty": "easy",
+      "multi_hop": false,
+      "reference_answer": "Function parameters that are not part of the path are interpreted as query parameters. Giving one a default value makes it optional, e.g. `def read_items(skip: int = 0, limit: int = 10)`. A parameter with no default is required. You can make a parameter explicitly optional and defaulting to None with `q: str | None = None`.",
+      "key_points": [
+        "function params not in the path become query parameters",
+        "a default value makes the query param optional",
+        "a param with no default is required",
+        "Optional / None default pattern is `q: str | None = None`"
+      ],
+      "retrieval_canary": false
+    },
+    {
+      "id": "q03_status_code",
+      "question": "How do I set a custom HTTP status code for an endpoint?",
+      "expected_sources": ["docs\\tutorial\\response-status-code.md"],
+      "difficulty": "easy",
+      "multi_hop": false,
+      "reference_answer": "Pass `status_code` to the path-operation decorator, e.g. `@app.post('/items/', status_code=201)`. The recommended style is to use the constants from `fastapi.status` (e.g. `status.HTTP_201_CREATED`) for readability and editor autocompletion. This status is used for successful responses; error responses are raised separately via HTTPException.",
+      "key_points": [
+        "status_code is set as an argument on the path-operation decorator",
+        "recommended to use fastapi.status constants (e.g. status.HTTP_201_CREATED)",
+        "applies to the success response, not error responses"
+      ],
+      "retrieval_canary": false
+    },
+    {
+      "id": "q04_first_steps",
+      "question": "What's the minimal FastAPI app and how do I run it?",
+      "expected_sources": ["docs\\tutorial\\first-steps.md"],
+      "difficulty": "easy",
+      "multi_hop": false,
+      "reference_answer": "Create a FastAPI instance with `app = FastAPI()`, define a path operation by decorating an async (or sync) function, e.g. `@app.get('/')` returning a dict, and run the development server with `fastapi dev main.py`. The interactive docs are then available at /docs (Swagger UI) and /redoc.",
+      "key_points": [
+        "instantiate app = FastAPI()",
+        "define a path operation with a decorator like @app.get('/')",
+        "the function returns data (e.g. a dict) that is serialized to JSON",
+        "run with `fastapi dev` (or uvicorn); docs served at /docs"
+      ],
+      "retrieval_canary": false
+    },
+    {
+      "id": "q05_query_validation",
+      "question": "How do I add length or pattern validation to a string query parameter?",
+      "expected_sources": ["docs\\tutorial\\query-params-str-validations.md"],
+      "difficulty": "medium",
+      "multi_hop": false,
+      "reference_answer": "Annotate the parameter with `Query` using `Annotated`, e.g. `q: Annotated[str | None, Query(min_length=3, max_length=50, pattern='^fixedquery$')] = None`. Query accepts validation constraints like min_length, max_length, and pattern (regex). You can also attach metadata such as title and description that surface in the OpenAPI docs. The Annotated form is preferred over passing Query() as the default directly.",
+      "key_points": [
+        "use Query, applied via Annotated",
+        "min_length and max_length constrain string length",
+        "pattern applies a regex constraint",
+        "Annotated[...] form is the recommended style"
+      ],
+      "retrieval_canary": false
+    },
+    {
+      "id": "q06_dependencies_yield",
+      "question": "How do I run cleanup/teardown code in a dependency after the response is sent?",
+      "expected_sources": ["docs\\tutorial\\dependencies\\dependencies-with-yield.md"],
+      "difficulty": "medium",
+      "multi_hop": false,
+      "reference_answer": "Write the dependency as a generator that uses `yield` instead of `return`. Code before the yield runs on the way in (setup), the yielded value is injected, and code after the yield runs as teardown after the response is delivered. A common case is a database session: create it, `yield` it, then close it in a finally block. Use exactly one yield per dependency. Exceptions can be caught around the yield to handle cleanup on error.",
+      "key_points": [
+        "the dependency uses yield instead of return",
+        "code after the yield runs as teardown/cleanup after the response",
+        "exactly one yield per dependency",
+        "canonical example is opening then closing a DB session (often in try/finally)"
+      ],
+      "retrieval_canary": false
+    },
+    {
+      "id": "q07_cors",
+      "question": "How do I enable CORS so my browser frontend can call the API?",
+      "expected_sources": ["docs\\tutorial\\cors.md"],
+      "difficulty": "medium",
+      "multi_hop": false,
+      "reference_answer": "Add Starlette's CORSMiddleware via `app.add_middleware(CORSMiddleware, allow_origins=[...], allow_credentials=True, allow_methods=['*'], allow_headers=['*'])`. `allow_origins` is the list of permitted origins (scheme + host + port). Use specific origins in production rather than '*', especially when allow_credentials is True.",
+      "key_points": [
+        "use CORSMiddleware added with app.add_middleware",
+        "allow_origins lists the permitted origins",
+        "allow_methods and allow_headers control permitted methods/headers",
+        "avoid wildcard '*' origins in production when credentials are allowed"
+      ],
+      "retrieval_canary": false
+    },
+    {
+      "id": "q08_oauth2_jwt",
+      "question": "How do I issue and verify JWT access tokens for an OAuth2 password flow?",
+      "expected_sources": ["docs\\tutorial\\security\\oauth2-jwt.md"],
+      "difficulty": "medium",
+      "multi_hop": false,
+      "reference_answer": "Hash and verify passwords with a library like passlib (bcrypt) rather than storing plaintext. On the token endpoint, authenticate the user, then create a signed JWT containing claims (e.g. the username as 'sub') and an expiry ('exp'), signing it with a secret key and algorithm (e.g. HS256) using a library like PyJWT. Return it as a bearer token. On protected routes, decode and verify the JWT with the same key/algorithm, reject expired or invalid tokens, and load the user from the 'sub' claim.",
+      "key_points": [
+        "passwords are hashed/verified (e.g. passlib + bcrypt), not stored in plaintext",
+        "a JWT is created with claims including subject and an expiry",
+        "the token is signed with a secret key and an algorithm (e.g. HS256)",
+        "protected routes decode/verify the JWT and reject invalid or expired tokens"
+      ],
+      "retrieval_canary": false
+    },
+    {
+      "id": "q09_background_tasks",
+      "question": "How do I run work after returning a response without making the client wait?",
+      "expected_sources": ["docs\\tutorial\\background-tasks.md"],
+      "difficulty": "medium",
+      "multi_hop": false,
+      "reference_answer": "Declare a `BackgroundTasks` parameter in your path operation (or dependency) and call `background_tasks.add_task(func, *args, **kwargs)`. FastAPI returns the response first and then runs the queued task. It's suited to lightweight work like sending a notification email or writing a log; heavy or scalable workloads should use a real task queue (e.g. Celery).",
+      "key_points": [
+        "add a BackgroundTasks parameter to the path operation or dependency",
+        "queue work with background_tasks.add_task(func, ...)",
+        "the response is returned before the task runs",
+        "appropriate for light work; heavy workloads need a dedicated queue"
+      ],
+      "retrieval_canary": false
+    },
+    {
+      "id": "q10_bigger_applications",
+      "question": "How do I split a large FastAPI app across multiple files?",
+      "expected_sources": ["docs\\tutorial\\bigger-applications.md"],
+      "difficulty": "medium",
+      "multi_hop": false,
+      "reference_answer": "Use `APIRouter` to group related path operations in their own modules, then bring them into the main app with `app.include_router(router)`. include_router (and APIRouter) accept shared `prefix`, `tags`, `dependencies`, and `responses` so you don't repeat them per route. This keeps routers self-contained and composable.",
+      "key_points": [
+        "define routes in modules using APIRouter",
+        "register them on the app with app.include_router(...)",
+        "include_router supports shared prefix, tags, and dependencies",
+        "lets the codebase be organized into independent modules"
+      ],
+      "retrieval_canary": false
+    },
+    {
+      "id": "q11_response_model",
+      "question": "How do I control which fields are returned in a response?",
+      "expected_sources": ["docs\\tutorial\\response-model.md"],
+      "difficulty": "medium",
+      "multi_hop": false,
+      "reference_answer": "Set `response_model` on the path-operation decorator to a Pydantic model. FastAPI validates and filters the outgoing data to that model's fields, so fields not in the model are stripped from the response even if present on the returned object. This is the standard way to avoid leaking fields like a password hash: return an input/DB model internally but declare an output model with only public fields. Options like response_model_exclude_unset omit fields that were never set.",
+      "key_points": [
+        "response_model is declared on the decorator and points at a Pydantic model",
+        "output is filtered to the model's fields, dropping anything else",
+        "common use is hiding sensitive fields (e.g. a password) by using a separate output model",
+        "response_model_exclude_unset can omit unset fields"
+      ],
+      "retrieval_canary": false
+    },
+    {
+      "id": "q12_docker_deploy",
+      "question": "How do I deploy a FastAPI app in a Docker container?",
+      "expected_sources": ["docs\\deployment\\docker.md"],
+      "difficulty": "medium",
+      "multi_hop": false,
+      "reference_answer": "Write a Dockerfile starting from an official Python image, set a workdir, copy and `pip install` your requirements (copying requirements first to leverage layer caching), copy the app code, and set a CMD that runs the server, e.g. `CMD [\"fastapi\", \"run\", \"app/main.py\", \"--port\", \"80\"]`. Run a single Uvicorn process per container and scale by running more containers behind a load balancer / orchestrator rather than enabling internal workers. Expose the port the server listens on.",
+      "key_points": [
+        "base the image on an official Python image",
+        "copy requirements first and pip install to exploit Docker layer caching",
+        "CMD runs the server (fastapi run / uvicorn) on a chosen port",
+        "prefer one process per container and scale with multiple containers"
+      ],
+      "retrieval_canary": false
+    },
+    {
+      "id": "q13_settings_env",
+      "question": "How do I read configuration like secret keys from environment variables in a type-safe way?",
+      "expected_sources": ["docs\\advanced\\settings.md", "docs\\environment-variables.md"],
+      "difficulty": "hard",
+      "multi_hop": true,
+      "reference_answer": "Environment variables are always strings, so reading them raw (e.g. os.environ) gives you no typing or validation. FastAPI recommends pydantic-settings: install it, then define a class subclassing BaseSettings with typed attributes (e.g. app_name: str, items_per_user: int = 50). Pydantic reads matching environment variables, converts them to the declared types, and validates them, raising a clear error if a required one is missing or malformed. You can load values from a .env file, and inject the settings object as a dependency (optionally cached with lru_cache) so it's read once and easy to override in tests.",
+      "key_points": [
+        "environment variables are strings and need conversion/validation",
+        "use pydantic-settings with a class subclassing BaseSettings",
+        "typed attributes drive automatic conversion and validation, with defaults for optional ones",
+        "settings can be loaded from a .env file and injected as a (often cached) dependency"
+      ],
+      "retrieval_canary": false
+    },
+    {
+      "id": "q14_async_vs_def",
+      "question": "When should a path operation be `async def` versus `def`, and what happens if I make a blocking call inside `async def`?",
+      "expected_sources": ["docs\\async.md"],
+      "difficulty": "hard",
+      "multi_hop": false,
+      "reference_answer": "Use `async def` when you call libraries with `await` (you can only use await inside async def). Use plain `def` when your dependencies are blocking and have no async support (true for many DB drivers); FastAPI runs plain `def` path operations in an external threadpool so they don't block the event loop. If you don't know, use `def`. The hazard: putting a blocking call inside an `async def` runs it directly on the event loop, stalling all concurrency until it finishes, because the function never yields control back to the loop.",
+      "key_points": [
+        "use async def when awaiting async libraries; await is only valid inside async def",
+        "use plain def for blocking code with no async support",
+        "FastAPI runs plain def path operations in a threadpool so they don't block the loop",
+        "a blocking call inside async def stalls the event loop and kills concurrency"
+      ],
+      "retrieval_canary": false
+    },
+    {
+      "id": "q15_oauth2_scopes",
+      "question": "How do I restrict specific endpoints using OAuth2 scopes on top of JWT auth?",
+      "expected_sources": ["docs\\advanced\\security\\oauth2-scopes.md", "docs\\tutorial\\security\\oauth2-jwt.md"],
+      "difficulty": "hard",
+      "multi_hop": true,
+      "reference_answer": "Scopes are space-separated permission strings defined in your OAuth2 scheme and shown in the OpenAPI docs. Issue them in the JWT (e.g. a 'scopes' claim) when a user logs in. On protected routes, require them with `Security(get_current_user, scopes=['items'])` instead of plain Depends, and use a `SecurityScopes` parameter in your dependency to read the scopes required by the current route. Verify that the scopes encoded in the token cover the route's required scopes, raising a 401/403 (with the correct WWW-Authenticate header) when they don't. FastAPI propagates required scopes through nested dependencies.",
+      "key_points": [
+        "scopes are space-separated permission strings declared in the OAuth2 scheme",
+        "granted scopes are encoded into the JWT at login",
+        "routes require scopes via Security(..., scopes=[...]) rather than plain Depends",
+        "a SecurityScopes parameter exposes the route's required scopes for verification against the token"
+      ],
+      "retrieval_canary": false
+    }
+  ]
+}
