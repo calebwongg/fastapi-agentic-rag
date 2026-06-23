@@ -1,5 +1,6 @@
-from rag import retrieve, flatten_context
+from rag import retrieve, flatten_context, build_prompt, generate
 import json 
+import ollama
 
 #we are going to use mean reciprocal rank (mrr) for considering distance weights for each of our retrieved documents
 # RR = 1 / rank (rank is how close it is to the query. technically not based on the numerical distance number but relative to all of the other documents fetched)
@@ -9,14 +10,24 @@ def get_metrics(k: int):
     mrr_sum = 0
     hits = 0
     hit_distances = []
+    faithfulness_sum = 0 
 
     with open("golden_set.json", "r") as file: 
         data = json.load(file) #array of dictionaries
 
-    for entry in data["golden_set"]: 
+    for entry in data["golden_set"]:         
         raw_data = retrieve(entry["question"], k)
         documents = flatten_context(raw_data) #arr of dictionaries
-        for rank, doc in enumerate(documents): 
+
+        #logic for checking faithfulness 
+        raw_data = retrieve(doc["question"], k)
+        metadata = flatten_context(raw_data)
+        query = build_prompt(doc["question"], metadata)
+        result = generate(query)
+        resp = get_faithfulness(query, result)
+        faithfulness_sum += resp
+
+        for rank, doc in enumerate(documents):
             if doc["source"] in entry["expected_sources"]: 
                 hits += 1
                 mrr_sum += (1.0 / (rank + 1)) #indexed starting at 0 so add 1
@@ -27,36 +38,48 @@ def get_metrics(k: int):
     avg_mrr = (mrr_sum / len(data["golden_set"]))
     avg_hit_distance = 0 
     if hit_distances: 
-        avg_hit_distance = sum(hit_distances) / len(hit_distances])
+        avg_hit_distance = sum(hit_distances) / len(hit_distances)
     else: 
         avg_hit_distance = 0
+    avg_faithfulness = faithfulness_sum / len(data["golden_set"])
     
     return { 
         "hit_rate": hit_rate, 
         "mrr": avg_mrr, 
-        "avg_hit_distance": avg_hit_distance
+        "avg_hit_distance": avg_hit_distance,
+        "avg_faithfulness": avg_faithfulness
     }
 
 
-def trace_get_metrics(k: int): 
-    data = []
-    found = 0
-    with open("golden_set.json", "r") as file: 
-        data = json.load(file) #array of dictionaries
+def get_faithfulness(prompt, response): 
+    print(f'user prompt: {prompt}\n\n')
+    print(f'llm response: {response}\n\n')
+    print(f'checking faithfulness ...')
+    query = f'''
+        You are checking the faithfulness and evaluating the output of an AI assistant 
+        Your task is to determine if the generated answer is entirely faithful to the provided retrieval context.
+        Faithful means that the answer given by the assistant is fully and directely supported by the context provided in the original prompt.
+        You are NOT fact checking the data based off of your prior background knowledge, you are only evaluating if the answer is supported by the context provided in the prompt.
 
-    for entry in data["golden_set"]: 
-        raw_data = retrieve(entry["question"], k)
-        documents = flatten_context(raw_data) #arr of dictionaries
-        for doc in documents: 
-            if doc["source"] in entry["expected_sources"]: 
-                found += 1
-                print(f'confirmed: found {doc["source"]} in {entry["id"]}')
-                break
+        USER_QUERY: {prompt} 
+        AI_ASSISTANT_RESPONSE: {response}
+        
+        Rules: 
+        1. Break down the response into multiple factual claims
+        2. Evaluate the AI assistant's response and based off of the broken down chunks, grade the response from 0-1.00 based off how faithful it is
+        3. Return your faithfulness number evaluation in a float, and provide your reasoning for why you provided that score in the following json format: 
+        {{
+            "faithfulness": float 
+            "reasoning": str
+        }}
+    '''
+    resp = ollama.chat( 
+        model = "llama3.2",
+        messages = [{"role": "user", "content": query}],
+        format = "json"
+    )
 
-    print(f'found: {found}. number of test case: {len(data["golden_set"])}')
-    return (found / len(data["golden_set"])) * 100 
-
-
+    return resp
 
 
 def test_range(start: int, end: int) -> tuple[int, int]:
@@ -73,7 +96,17 @@ def test_range(start: int, end: int) -> tuple[int, int]:
 
 
 
-
 if __name__ == '__main__':
-    k, optimal_mrr = test_range(1, 20) 
-    print(f'the most optimal k-index is {k} which has an mrr of {optimal_mrr}')
+    raw_data = retrieve("How do I define an optional query parameter with a default value?", 3)
+    metadata = flatten_context(raw_data)
+    query = build_prompt("How do I define an optional query parameter with a default value?", metadata)
+    result = generate(query)
+    raw_ollama_resp = get_faithfulness(query, result)
+    json_string = raw_ollama_resp.message.content 
+    resp = json.loads(json_string)
+    print(f'raw response: {resp}')
+    print(f'the faithfulness of this query is {resp["faithfulness"]}')
+    print(f'ollamas reasoning is: {resp["reasoning"]}') 
+
+    #k, optimal_mrr = test_range(1, 20) 
+    #print(f'the most optimal k-index is {k} which has an mrr of {optimal_mrr}')

@@ -47,8 +47,7 @@ def flatten_context(results):
     return data 
 
 
-def generate(prompt, context): 
-
+def build_prompt(prompt, context): 
     query = f"""
         Act as a documentation-backed FastAPI Agentic Assistant tool. 
         
@@ -64,7 +63,9 @@ def generate(prompt, context):
         USER_QUESTION: {prompt}
         CONTEXT: {context}
     """
+    return query
 
+def generate(query): 
     resp = ollama.chat( 
         model = "llama3.2",
         messages=[{"role": "user", "content": query}], 
@@ -81,3 +82,4 @@ if __name__ == '__main__':
     documents = retrieve(prompt, k) 
     data = flatten_context(documents)
     print(f'documents: {data}')
+
