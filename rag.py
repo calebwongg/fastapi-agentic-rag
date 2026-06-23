@@ -74,10 +74,10 @@ def generate(prompt, context):
     return answer
 
 
-prompt = "how do i define a paramter in fastapi"
-k = 4
-documents = retrieve(prompt, k) 
-data = flatten_context(documents)
-print(f'documents: {data}')
-answer = generate(prompt, data)
-print(answer) 
+
+if __name__ == '__main__':
+    prompt = "How do I split a large FastAPI app across multiple files?"
+    k = 4
+    documents = retrieve(prompt, k) 
+    data = flatten_context(documents)
+    print(f'documents: {data}')
