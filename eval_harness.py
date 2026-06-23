@@ -15,28 +15,9 @@ def get_metrics(k: int):
     with open("golden_set.json", "r") as file: 
         data = json.load(file) #array of dictionaries
 
-    for entry in data["golden_set"]:         
+    for entry in data["golden_set"]:    
         raw_data = retrieve(entry["question"], k)
         documents = flatten_context(raw_data) #arr of dictionaries
-
-        #logic for checking faithfulness 
-        raw_data = retrieve(entry["question"], k)
-        metadata = flatten_context(raw_data)
-        query = build_prompt(entry["question"], metadata)
-        result = generate(query)
-        raw_ollama_resp = get_faithfulness(query, result)
-        json_string = raw_ollama_resp.message.content 
-        try:
-            resp = json.loads(json_string)
-        except json.JSONDecodeError:
-            print("\n⚠️ WARNING: Llama generated bad JSON syntax. Skipping this test case calculation.")
-            # Provide a safe fallback dictionary so your code doesn't crash
-            resp = {
-                "faithfulness": 0.0, 
-                "reasoning": f"FAILED_TO_PARSE_RAW_OUTPUT: {json_string}"
-            }
-        faithfulness_sum += resp["faithfulness"] #i suppose this is pretty unsafe because we are relying on the llm to format the json for us 
-        #i think this is pretty prone to injection attacks
 
         for rank, doc in enumerate(documents):
             if doc["source"] in entry["expected_sources"]: 
@@ -52,17 +33,42 @@ def get_metrics(k: int):
         avg_hit_distance = sum(hit_distances) / len(hit_distances)
     else: 
         avg_hit_distance = 0
-    avg_faithfulness = faithfulness_sum / len(data["golden_set"])
     
     return { 
         "hit_rate": hit_rate, 
         "mrr": avg_mrr, 
         "avg_hit_distance": avg_hit_distance,
-        "avg_faithfulness": avg_faithfulness
     }
 
+def average_faithfulness(k): 
+    faithfulness_sum = 0 
 
-def get_faithfulness(prompt, response): 
+    with open("golden_set.json", "r") as file: 
+        data = json.load(file) #array of dictionaries
+    
+    for entry in data["golden_set"]:
+        raw_data = retrieve(entry["question"], k)
+        metadata = flatten_context(raw_data)
+        query = build_prompt(entry["question"], metadata)
+        result = generate(query)
+        raw_ollama_resp = get_faithfulness(metadata, result)
+        json_string = raw_ollama_resp.message.content 
+        try:
+            resp = json.loads(json_string)
+        except json.JSONDecodeError:
+            print("\n⚠️ WARNING: Llama generated bad JSON syntax. Skipping this test case calculation.")
+            # Provide a safe fallback dictionary so your code doesn't crash
+            resp = {
+                "faithfulness": 0.0, 
+                "reasoning": f"FAILED_TO_PARSE_RAW_OUTPUT: {json_string}"
+            }
+        faithfulness_sum += resp["faithfulness"] #i suppose this is pretty unsafe because we are relying on the llm to format the json for us 
+        #i think this is pretty prone to injection 
+
+    avg_faithfulness = faithfulness_sum / len(data["golden_set"])
+    return avg_faithfulness
+
+def get_faithfulness(context, response): 
     #print(f'user prompt: {prompt}\n\n')
     #print(f'llm response: {response}\n\n')
     print(f'checking faithfulness ...')
@@ -72,7 +78,7 @@ def get_faithfulness(prompt, response):
         Faithful means that the answer given by the assistant is fully and directely supported by the context provided in the original prompt.
         You are NOT fact checking the data based off of your prior background knowledge, you are only evaluating if the answer is supported by the context provided in the prompt.
 
-        USER_QUERY: {prompt} 
+        CONTEXT: {context} 
         AI_ASSISTANT_RESPONSE: {response}
         
         Rules: 
@@ -80,7 +86,7 @@ def get_faithfulness(prompt, response):
         2. Evaluate the AI assistant's response and based off of the broken down chunks, grade the response from 0-1.00 based off how faithful it is
         3. Return your faithfulness number evaluation in a float, and provide your reasoning for why you provided that score in the following json format: 
         {{
-            "faithfulness": float 
+            "faithfulness": float,
             "reasoning": str
         }}
     '''
@@ -96,16 +102,14 @@ def get_faithfulness(prompt, response):
 def test_range(start: int, end: int) -> tuple[int, int]:
     max_index = 0
     max_mrr = 0
-    faithfulness = 0
     for i in range(start, end): 
         results = get_metrics(i) 
         print(f"the mrr for k = {i} is {results["mrr"]}")
         print(f'the hit rate for k = {i} is {results["hit_rate"]}')
-        print(f'the average faithfulness for k = {i} is {results["avg_faithfulness"]}')
         if results["mrr"] > max_mrr: 
             max_mrr = results["mrr"]
             max_index = i
-            faithfulness = results["avg_faithfulness"]
+    faithfulness = average_faithfulness(max_index)
     return max_index, max_mrr, faithfulness
 
 
@@ -124,5 +128,5 @@ if __name__ == '__main__':
     print(f'ollamas reasoning is: {resp["reasoning"]}') 
     '''
 
-    k, optimal_mrr, faithfulness = test_range(1, 20) 
+    k, optimal_mrr, faithfulness = test_range(1, 7) 
     print(f'the most optimal k-index (mrr-based) is {k} which has an mrr of {optimal_mrr} and a faithfulness of {faithfulness}')
