@@ -66,6 +66,7 @@ def build_prompt(prompt, context):
     return query
 
 def generate(query): 
+    print("generating response")
     resp = ollama.chat( 
         model = "llama3.2",
         messages=[{"role": "user", "content": query}], 

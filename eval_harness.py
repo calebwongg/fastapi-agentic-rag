@@ -20,12 +20,23 @@ def get_metrics(k: int):
         documents = flatten_context(raw_data) #arr of dictionaries
 
         #logic for checking faithfulness 
-        raw_data = retrieve(doc["question"], k)
+        raw_data = retrieve(entry["question"], k)
         metadata = flatten_context(raw_data)
-        query = build_prompt(doc["question"], metadata)
+        query = build_prompt(entry["question"], metadata)
         result = generate(query)
-        resp = get_faithfulness(query, result)
-        faithfulness_sum += resp
+        raw_ollama_resp = get_faithfulness(query, result)
+        json_string = raw_ollama_resp.message.content 
+        try:
+            resp = json.loads(json_string)
+        except json.JSONDecodeError:
+            print("\n⚠️ WARNING: Llama generated bad JSON syntax. Skipping this test case calculation.")
+            # Provide a safe fallback dictionary so your code doesn't crash
+            resp = {
+                "faithfulness": 0.0, 
+                "reasoning": f"FAILED_TO_PARSE_RAW_OUTPUT: {json_string}"
+            }
+        faithfulness_sum += resp["faithfulness"] #i suppose this is pretty unsafe because we are relying on the llm to format the json for us 
+        #i think this is pretty prone to injection attacks
 
         for rank, doc in enumerate(documents):
             if doc["source"] in entry["expected_sources"]: 
@@ -52,8 +63,8 @@ def get_metrics(k: int):
 
 
 def get_faithfulness(prompt, response): 
-    print(f'user prompt: {prompt}\n\n')
-    print(f'llm response: {response}\n\n')
+    #print(f'user prompt: {prompt}\n\n')
+    #print(f'llm response: {response}\n\n')
     print(f'checking faithfulness ...')
     query = f'''
         You are checking the faithfulness and evaluating the output of an AI assistant 
@@ -85,18 +96,22 @@ def get_faithfulness(prompt, response):
 def test_range(start: int, end: int) -> tuple[int, int]:
     max_index = 0
     max_mrr = 0
+    faithfulness = 0
     for i in range(start, end): 
         results = get_metrics(i) 
         print(f"the mrr for k = {i} is {results["mrr"]}")
         print(f'the hit rate for k = {i} is {results["hit_rate"]}')
+        print(f'the average faithfulness for k = {i} is {results["avg_faithfulness"]}')
         if results["mrr"] > max_mrr: 
             max_mrr = results["mrr"]
             max_index = i
-    return max_index, max_mrr
+            faithfulness = results["avg_faithfulness"]
+    return max_index, max_mrr, faithfulness
 
 
 
 if __name__ == '__main__':
+    '''
     raw_data = retrieve("How do I define an optional query parameter with a default value?", 3)
     metadata = flatten_context(raw_data)
     query = build_prompt("How do I define an optional query parameter with a default value?", metadata)
@@ -107,6 +122,7 @@ if __name__ == '__main__':
     print(f'raw response: {resp}')
     print(f'the faithfulness of this query is {resp["faithfulness"]}')
     print(f'ollamas reasoning is: {resp["reasoning"]}') 
+    '''
 
-    #k, optimal_mrr = test_range(1, 20) 
-    #print(f'the most optimal k-index is {k} which has an mrr of {optimal_mrr}')
+    k, optimal_mrr, faithfulness = test_range(1, 20) 
+    print(f'the most optimal k-index (mrr-based) is {k} which has an mrr of {optimal_mrr} and a faithfulness of {faithfulness}')
