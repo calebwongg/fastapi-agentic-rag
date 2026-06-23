@@ -42,6 +42,7 @@ def get_metrics(k: int):
 
 def average_faithfulness(k): 
     faithfulness_sum = 0 
+    reasonings = []
 
     with open("golden_set.json", "r") as file: 
         data = json.load(file) #array of dictionaries
@@ -64,9 +65,10 @@ def average_faithfulness(k):
             }
         faithfulness_sum += resp["faithfulness"] #i suppose this is pretty unsafe because we are relying on the llm to format the json for us 
         #i think this is pretty prone to injection 
+        reasonings.append({"entry": entry["question"], "faithfulness": resp["faithfulness"], "reasoning": resp["reasoning"]})
 
     avg_faithfulness = faithfulness_sum / len(data["golden_set"])
-    return avg_faithfulness
+    return avg_faithfulness, reasonings
 
 def get_faithfulness(context, response): 
     #print(f'user prompt: {prompt}\n\n')
@@ -109,9 +111,13 @@ def test_range(start: int, end: int) -> tuple[int, int]:
         if results["mrr"] > max_mrr: 
             max_mrr = results["mrr"]
             max_index = i
-    faithfulness = average_faithfulness(max_index)
-    return max_index, max_mrr, faithfulness
+    faithfulness, reasonings = average_faithfulness(max_index)
+    return max_index, max_mrr, faithfulness, reasonings
 
+def print_reasonings(reasonings): 
+    print("the reasongs for the faithfulness scores are: \n")
+    for entry in reasonings: 
+        print(entry, "\n")
 
 
 if __name__ == '__main__':
@@ -128,5 +134,6 @@ if __name__ == '__main__':
     print(f'ollamas reasoning is: {resp["reasoning"]}') 
     '''
 
-    k, optimal_mrr, faithfulness = test_range(1, 7) 
+    k, optimal_mrr, faithfulness, reasonings = test_range(1, 7) 
     print(f'the most optimal k-index (mrr-based) is {k} which has an mrr of {optimal_mrr} and a faithfulness of {faithfulness}')
+    print_reasonings(reasonings)
