@@ -14,7 +14,8 @@
   },
   "golden_set": [
     {
-      "id": "q01_path_params",
+      "_comment": "TODO @calebwongg: this test case isn't validating",
+      "id": "q01_path_params", 
       "question": "How do I declare a path parameter in FastAPI and give it a type?",
       "expected_sources": ["docs\\tutorial\\path-params.md"],
       "difficulty": "easy",
