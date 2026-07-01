@@ -3,3 +3,4 @@ chromadb
 python-dotenv
 langchain-text-splitters
 ollama
+langgraph

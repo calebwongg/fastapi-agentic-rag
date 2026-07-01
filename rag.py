@@ -1,6 +1,18 @@
 import chromadb
 from chromadb.utils import embedding_functions
 import ollama
+import langgraph
+from typing import TypedDict
+
+
+
+class RAGState(TypedDict):
+    question: str        # original user input
+    documents: list       # retrieved + flattened chunks
+    query: str           # rebuilt user prompt with relevant documents. result from build_prompt
+    answer: str          # final generated answer
+    relevant: bool       # grade node's verdict
+    attempts: int        # loop guard that represents how many rewrites / self correction iterations we have
 
 #ollama pull downloads the specific model onto your local machien. ollama pull 3.2 is necessary for running and utilizing the ollama model
 
