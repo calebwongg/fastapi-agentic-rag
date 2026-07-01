@@ -18,7 +18,7 @@ def get_metrics(k: int):
     for entry in data["golden_set"]:    
         raw_data = retrieve(entry["question"], k)
         documents = flatten_context(raw_data) #arr of dictionaries
-
+        
         for rank, doc in enumerate(documents):
             if doc["source"] in entry["expected_sources"]: 
                 hits += 1
